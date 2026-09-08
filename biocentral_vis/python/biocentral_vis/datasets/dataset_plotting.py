@@ -1,7 +1,7 @@
 import pandas as pd
 import altair as alt
 
-from typing import List
+from typing import List, Dict
 from biotrainer_core.data_classes import SequenceData
 
 from ..base.constants import DISCRETE_THRESHOLD
@@ -106,3 +106,47 @@ def plot_label_distribution(dataset: List[SequenceData]):
     if len(labels_set) > DISCRETE_THRESHOLD:
         return _plot_label_distribution_continuous(dataset)
     return _plot_label_distribution_discrete(dataset)
+
+
+def plot_cluster_size_distribution(cluster_results: Dict[str, List[str]]):
+    """
+    Generates a cluster size distribution histogram/bar chart.
+    cluster_results: Dict mapping representative sequence IDs to list of member IDs.
+    Example: {"rep1": ["s1", "s2", "s3"], "rep2": ["s4"]}
+    """
+    # 1. Compute cluster sizes
+    cluster_sizes = [len(members) for members in cluster_results.values()]
+    
+    # 2. Convert to DataFrame
+    df = pd.DataFrame({'cluster_size': cluster_sizes})
+    
+    # 3. Create Altair chart
+    chart = alt.Chart(df).mark_bar(
+        cornerRadius=4,
+        opacity=0.85,
+        color='#4C78A8'
+    ).encode(
+        x=alt.X('cluster_size:Q', 
+                title='Cluster Size (Number of Sequences per Cluster)',
+                bin=alt.Bin(maxbins=25)),
+        y=alt.Y('count():Q', title='Frequency (Number of Clusters)'),
+        tooltip=[
+            alt.Tooltip('cluster_size:Q', title='Cluster Size Range', bin=alt.Bin(maxbins=25)),
+            alt.Tooltip('count():Q', title='Cluster Count')
+        ]
+    ).properties(
+        title={
+            'text': 'Cluster Size Distribution',
+            'subtitle': f'Total Clusters: {len(cluster_sizes)} | Total Sequences: {sum(cluster_sizes)}'
+        },
+        width=400,
+        height=300
+    )
+
+    metadata = {
+        'total_clusters': len(cluster_sizes),
+        'total_sequences': sum(cluster_sizes),
+        'max_cluster_size': max(cluster_sizes) if cluster_sizes else 0
+    }
+    
+    return chart, metadata

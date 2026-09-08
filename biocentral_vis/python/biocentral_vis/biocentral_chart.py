@@ -10,6 +10,7 @@ from .base import BiocentralVisualization
 from .datasets import plot_label_distribution
 from .projections import plot_projection_result
 from .models import plot_test_set_performance, plot_loss_curves
+from .datasets import plot_label_distribution, plot_cluster_size_distribution
 
 
 class BiocentralChart(BiocentralVisualization):
@@ -42,6 +43,11 @@ class BiocentralChart(BiocentralVisualization):
                           ):
         chart, metadata = plot_projection_result(projection_result, dataset, color_attribute=color_attribute,
                                                  highlight_ids=highlight_ids, highlight_name=highlight_name)
+        return cls(chart, metadata)
+
+    @classmethod
+    def cluster_size_distribution(cls, cluster_results: Dict[str, List[str]]):
+        chart, metadata = plot_cluster_size_distribution(cluster_results)
         return cls(chart, metadata)
 
     def to_svg(self) -> str:

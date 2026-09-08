@@ -1,0 +1,3 @@
+dependency_overrides:
+  biocentral_api:
+    path: ../biocentral_api/dart
