@@ -148,3 +148,26 @@ class SplitHBIResponse(BaseModel):
     num_queries: int = Field(..., description="Total number of query sequences provided")
     hits_found: int = Field(..., description="Number of queries with homologous hits in train")
     evaluated_queries: int = Field(..., description="Number of queries successfully evaluated")
+
+class SeedSplit(BaseModel):
+    seed: int = Field(..., description="Seed that generated this split")
+    train_ids: List[str] = Field(..., description="Sequence IDs in the train split")
+    query_ids: List[str] = Field(..., description="Sequence IDs in the evaluated split (test/val)")
+
+class SplitHBISeedScanRequest(BaseModel):
+    sequences: Dict[str, str] = Field(..., description="Map of sequence_id -> sequence for all split sequences")
+    labels: Dict[str, Any] = Field(..., description="Map of sequence_id -> target label/value")
+    splits: List[SeedSplit] = Field(..., min_length=1, max_length=30, description="One split per seed")
+    evalue_cutoff: float = Field(default=10.0, description="Maximum MMSeqs2 E-value threshold")
+    min_seq_id: float = Field(default=0.0, description="Minimum sequence identity threshold")
+    is_numeric: bool = Field(default=False, description="True for continuous regression targets, False for classification")
+    iterations: int = Field(default=30, description="Bootstrap iterations performed")
+
+class SeedHBIResult(BaseModel):
+    seed: int = Field(..., description="Seed that generated the split")
+    metrics: List[BootstrappedMetric] = Field(..., description="Bootstrapped evaluation metrics")
+    hits_found: int = Field(..., description="Number of queries with homologous hits in train")
+    evaluated_queries: int = Field(..., description="Number of queries successfully evaluated")
+
+class SplitHBISeedScanResponse(BaseModel):
+    results: List[SeedHBIResult] = Field(..., description="Split HBI result per seed")

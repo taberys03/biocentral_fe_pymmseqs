@@ -47,24 +47,22 @@ class SetGenerator {
     }
   }
 
+  /// Shuffles ids and cuts them at exact counts, so set sizes match the ratio
   Map<String, SplitSet> randomFull(List<String> ids, {int? seed}) {
-    final (train, val, test) = splitRatio.full;
-    final int rangeTrain = (train * 100).truncate();
-    final int rangeValidation = rangeTrain + (val * 100).truncate();
+    final (train, val, _) = splitRatio.full;
+    final int nTrain = (ids.length * train).round();
+    final int nVal = min((ids.length * val).round(), ids.length - nTrain);
+
+    final Random random = seed != null ? Random(seed) : Random();
+    final List<String> shuffledIds = List.of(ids)..shuffle(random);
 
     final Map<String, SplitSet> result = {};
-    final Random random = seed != null ? Random(seed) : Random();
-    for (String id in ids) {
-      SplitSet set;
-      final int randomValue = random.nextInt(100);
-      if (_inRange(0, rangeTrain, randomValue)) {
-        set = SplitSet.train;
-      } else if (_inRange(rangeTrain, rangeValidation, randomValue)) {
-        set = SplitSet.val;
-      } else {
-        set = SplitSet.test;
-      }
-      result[id] = set;
+    for (int i = 0; i < shuffledIds.length; i++) {
+      result[shuffledIds[i]] = i < nTrain
+          ? SplitSet.train
+          : i < nTrain + nVal
+              ? SplitSet.val
+              : SplitSet.test;
     }
     return result;
   }
@@ -177,7 +175,12 @@ class SetGenerator {
     return result;
   }
 
-  static bool _inRange(int start, int end, int value) {
-    return start <= value && value < end;
+  /// Number of ids assigned to each set
+  static Map<SplitSet, int> countSets(Map<String, SplitSet> mapping) {
+    final counts = {for (final set in SplitSet.values) set: 0};
+    for (final set in mapping.values) {
+      counts[set] = counts[set]! + 1;
+    }
+    return counts;
   }
 }

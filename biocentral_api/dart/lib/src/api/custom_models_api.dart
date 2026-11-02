@@ -20,6 +20,8 @@ import 'package:biocentral_api/src/model/model_files_request.dart';
 import 'package:biocentral_api/src/model/not_found_error_response.dart';
 import 'package:biocentral_api/src/model/split_hbi_request.dart';
 import 'package:biocentral_api/src/model/split_hbi_response.dart';
+import 'package:biocentral_api/src/model/split_hbi_seed_scan_request.dart';
+import 'package:biocentral_api/src/model/split_hbi_seed_scan_response.dart';
 import 'package:biocentral_api/src/model/start_inference_request.dart';
 import 'package:biocentral_api/src/model/start_task_response.dart';
 import 'package:biocentral_api/src/model/start_training_request.dart';
@@ -383,6 +385,101 @@ class CustomModelsApi {
     }
 
     return Response<SplitHBIResponse>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// Evaluate split HBI for several seeds of the same dataset with a single easy_search
+  /// 
+  ///
+  /// Parameters:
+  /// * [splitHBISeedScanRequest] 
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [SplitHBISeedScanResponse] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<SplitHBISeedScanResponse>> splitHbiSeedScanApiV1CustomModelsServiceSplitHbiSeedScanPost({ 
+    required SplitHBISeedScanRequest splitHBISeedScanRequest,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/api/v1/custom_models_service/split-hbi-seed-scan/';
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[],
+        ...?extra,
+      },
+      contentType: 'application/json',
+      validateStatus: validateStatus,
+    );
+
+    dynamic _bodyData;
+
+    try {
+      const _type = FullType(SplitHBISeedScanRequest);
+      _bodyData = _serializers.serialize(splitHBISeedScanRequest, specifiedType: _type);
+
+    } catch(error, stackTrace) {
+      throw DioException(
+         requestOptions: _options.compose(
+          _dio.options,
+          _path,
+        ),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final _response = await _dio.request<Object>(
+      _path,
+      data: _bodyData,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    SplitHBISeedScanResponse? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null ? null : _serializers.deserialize(
+        rawResponse,
+        specifiedType: const FullType(SplitHBISeedScanResponse),
+      ) as SplitHBISeedScanResponse;
+
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<SplitHBISeedScanResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

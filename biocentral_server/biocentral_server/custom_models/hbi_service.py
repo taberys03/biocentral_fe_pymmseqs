@@ -2,13 +2,27 @@ import os
 import torch
 import shutil
 import tempfile
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 import pandas as pd
 
 from pymmseqs.commands import easy_search
 from biotrainer.shared import Bootstrapper
 from biotrainer.shared.metrics import (SequenceClassificationMetricsCalculator, SequenceRegressionMetricsCalculator)
 from biotrainer_core.data_classes.metrics import BootstrappedMetric
+
+
+RESULT_COLUMNS = ["query", "target", "fident", "alnlen", "evalue", "bits"]
+
+
+def select_top_hits(hits_df: pd.DataFrame) -> pd.DataFrame:
+    """Keeps the best hit (lowest evalue, then highest bitscore) for every query"""
+    if hits_df.empty:
+        return pd.DataFrame(columns=RESULT_COLUMNS)
+    return (
+        hits_df.sort_values(by=["query", "evalue", "bits"], ascending=[True, True, False])
+        .groupby("query", as_index=False)
+        .first()
+    )
 
 
 def run_easy_search_lookup(
@@ -26,11 +40,31 @@ def run_easy_search_lookup(
 
     returns a dataframe with the best hit (according to the evalue and bitscore) for every found query sequence
     """
+    return select_top_hits(
+        run_easy_search_all_hits(
+            train_seqs=train_seqs,
+            query_seqs=query_seqs,
+            evalue_cutoff=evalue_cutoff,
+            min_seq_id=min_seq_id,
+            exclude_identical_id=exclude_identical_id,
+        )
+    )
 
-    result_columns = ["query", "target", "fident", "alnlen", "evalue", "bits"]
+
+def run_easy_search_all_hits(
+        train_seqs: Dict[str, str],
+        query_seqs: Dict[str, str],
+        evalue_cutoff: float = 10.0,
+        min_seq_id: float = 0.0,
+        exclude_identical_id: bool = False,
+        max_seqs: int = 300,
+) -> pd.DataFrame:
+    """
+    Executes an mmseqs2 easy_search and returns all hits that pass the thresholds
+    """
 
     if not train_seqs or not query_seqs:
-        return pd.DataFrame(columns=result_columns)
+        return pd.DataFrame(columns=RESULT_COLUMNS)
 
     temp_dir = tempfile.mkdtemp(prefix="mmseqs_hbi_lookup_")
 
@@ -54,29 +88,24 @@ def run_easy_search_lookup(
             tmp_dir=temp_dir,
             e=evalue_cutoff,
             min_seq_id=min_seq_id,
+            max_seqs=max_seqs,
             format_output="query,target,fident,alnlen,evalue,bits",
         )
 
         df_hits = parser.to_pandas()
 
         if df_hits.empty:
-            return pd.DataFrame(columns=result_columns)
+            return pd.DataFrame(columns=RESULT_COLUMNS)
 
         if exclude_identical_id:
             df_hits = df_hits[df_hits["query"] != df_hits["target"]].copy()
             if df_hits.empty:
-                return pd.DataFrame(columns=result_columns)
+                return pd.DataFrame(columns=RESULT_COLUMNS)
 
         df_hits["evalue"] = df_hits["evalue"].astype(float)
         df_hits["bits"] = df_hits["bits"].astype(float)
         df_hits["fident"] = df_hits["fident"].astype(float)
-
-        top_hits = (
-            df_hits.sort_values(by=["query", "evalue", "bits"], ascending=[True, True, False])
-            .groupby("query", as_index=False)
-            .first()
-        )
-        return top_hits
+        return df_hits
 
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
@@ -156,6 +185,65 @@ def compute_hbi_metrics_from_lookup(
         iterations=iterations,
         confidence_level=confidence_level,
     )
+
+
+def compute_seed_scan(
+        sequences: Dict[str, str],
+        labels: Dict[str, Any],
+        splits: Dict[int, Tuple[List[str], List[str]]],
+        evalue_cutoff: float = 10.0,
+        min_seq_id: float = 0.0,
+        is_numeric: bool = False,
+        iterations: int = 30,
+) -> Dict[int, Tuple[List[BootstrappedMetric], int]]:
+    """
+    Computes split HBI metrics for several splits of the same dataset (e.g. one per seed).
+
+    Runs a single all-vs-all easy_search and restricts the hits to (query -> train) pairs of each split.
+    E-values scale with the target database size, so they are rescaled from the full dataset to each
+    train set to match a separate easy_search against the train set only.
+
+    splits: seed -> (train_ids, query_ids)
+    returns seed -> (bootstrapped metrics, number of queries with a train hit)
+    """
+    if not splits:
+        return {}
+
+    total_residues = sum(len(seq) for seq in sequences.values())
+    train_residues = {
+        seed: sum(len(sequences[seq_id]) for seq_id in train_ids if seq_id in sequences)
+        for seed, (train_ids, _) in splits.items()
+    }
+    smallest_train_fraction = min(train_residues.values()) / total_residues if total_residues else 0
+    if smallest_train_fraction == 0:
+        return {seed: ([], 0) for seed in splits}
+
+    # Loosen the search cutoff so that every hit passing the rescaled cutoff of any split is kept.
+    # max_seqs is raised so the best hit inside the train set is never truncated by the prefilter
+    all_hits = run_easy_search_all_hits(
+        train_seqs=sequences,
+        query_seqs=sequences,
+        evalue_cutoff=evalue_cutoff / smallest_train_fraction,
+        min_seq_id=min_seq_id,
+        exclude_identical_id=True,
+        max_seqs=max(300, len(sequences)),
+    )
+
+    results = {}
+    for seed, (train_ids, query_ids) in splits.items():
+        split_hits = all_hits[all_hits["query"].isin(set(query_ids)) & all_hits["target"].isin(set(train_ids))].copy()
+        split_hits["evalue"] = split_hits["evalue"] * (train_residues[seed] / total_residues)
+        top_hits = select_top_hits(split_hits[split_hits["evalue"] <= evalue_cutoff])
+
+        metrics = compute_hbi_metrics_from_lookup(
+            train_labels={seq_id: labels[seq_id] for seq_id in train_ids if seq_id in labels},
+            query_labels={seq_id: labels[seq_id] for seq_id in query_ids if seq_id in labels},
+            top_hits_df=top_hits,
+            is_numeric=is_numeric,
+            iterations=iterations,
+        )
+        results[seed] = (metrics, len(top_hits))
+    return results
 
 
 def compute_hbi_cluster_metrics(

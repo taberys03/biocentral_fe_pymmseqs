@@ -86,10 +86,14 @@ import 'package:biocentral_api/src/model/research_stats.dart';
 import 'package:biocentral_api/src/model/research_stats_response.dart';
 import 'package:biocentral_api/src/model/run_test_request.dart';
 import 'package:biocentral_api/src/model/run_test_response.dart';
+import 'package:biocentral_api/src/model/seed_hbi_result.dart';
+import 'package:biocentral_api/src/model/seed_split.dart';
 import 'package:biocentral_api/src/model/sequence_data.dart';
 import 'package:biocentral_api/src/model/service_stats_response.dart';
 import 'package:biocentral_api/src/model/split_hbi_request.dart';
 import 'package:biocentral_api/src/model/split_hbi_response.dart';
+import 'package:biocentral_api/src/model/split_hbi_seed_scan_request.dart';
+import 'package:biocentral_api/src/model/split_hbi_seed_scan_response.dart';
 import 'package:biocentral_api/src/model/start_inference_request.dart';
 import 'package:biocentral_api/src/model/start_task_response.dart';
 import 'package:biocentral_api/src/model/start_training_request.dart';
@@ -178,10 +182,14 @@ part 'serializers.g.dart';
   ResearchStatsResponse,
   RunTestRequest,
   RunTestResponse,
+  SeedHBIResult,
+  SeedSplit,
   SequenceData,
   ServiceStatsResponse,
   SplitHBIRequest,
   SplitHBIResponse,
+  SplitHBISeedScanRequest,
+  SplitHBISeedScanResponse,
   StartInferenceRequest,
   StartTaskResponse,
   StartTrainingRequest,
@@ -281,12 +289,20 @@ Serializers serializers = (_$serializers.toBuilder()
         () => ListBuilder<num>(),
       )
       ..addBuilderFactory(
+        const FullType(BuiltList, [FullType(SeedSplit)]),
+        () => ListBuilder<SeedSplit>(),
+      )
+      ..addBuilderFactory(
         const FullType(BuiltMap, [FullType(String), FullType(BuiltList, [FullType(Prediction)])]),
         () => MapBuilder<String, BuiltList<Prediction>>(),
       )
       ..addBuilderFactory(
         const FullType(BuiltMap, [FullType(String), FullType(BuiltList, [FullType(BootstrappedMetric)])]),
         () => MapBuilder<String, BuiltList<BootstrappedMetric>>(),
+      )
+      ..addBuilderFactory(
+        const FullType(BuiltList, [FullType(SeedHBIResult)]),
+        () => ListBuilder<SeedHBIResult>(),
       )
       ..addBuilderFactory(
         const FullType(BuiltList, [FullType.nullable(JsonObject)]),

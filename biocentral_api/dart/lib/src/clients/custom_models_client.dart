@@ -6,9 +6,12 @@ import 'package:biocentral_api/src/model/config_verification_request.dart';
 import 'package:biocentral_api/src/model/config_verification_response.dart';
 import 'package:biocentral_api/src/model/prediction.dart';
 import 'package:biocentral_api/src/model/biotrainer_model_result.dart';
+import 'package:biocentral_api/src/model/seed_split.dart';
 import 'package:biocentral_api/src/model/sequence_data.dart';
 import 'package:biocentral_api/src/model/split_hbi_request.dart';
 import 'package:biocentral_api/src/model/split_hbi_response.dart';
+import 'package:biocentral_api/src/model/split_hbi_seed_scan_request.dart';
+import 'package:biocentral_api/src/model/split_hbi_seed_scan_response.dart';
 import 'package:biocentral_api/src/model/start_inference_request.dart';
 import 'package:biocentral_api/src/model/start_training_request.dart';
 import 'package:biocentral_api/src/model/task_dto.dart';
@@ -163,6 +166,42 @@ class CustomModelsClient {
       ..iterations = iterations;
 
     final resp = await cmApi.splitHbiApiV1CustomModelsServiceSplitHbiPost(splitHBIRequest: request.build());
+    return resp.data;
+  }
+
+  /// HBI baseline from train to query split for several seeds of the same dataset (synchronous).
+  ///
+  /// [splits] maps each seed to the (train ids, query ids) of the split it generated.
+  Future<SplitHBISeedScanResponse?> splitHbiSeedScan({
+    required gen.BiocentralApi api,
+    required Map<String, String> sequences,
+    required Map<String, dynamic> labels,
+    required Map<int, (List<String>, List<String>)> splits,
+    num evalueCutoff = 0.001,
+    num minSeqId = 0.0,
+    bool isNumeric = false,
+    int iterations = 30,
+  }) async {
+    final cmApi = api.getCustomModelsApi();
+    final request = SplitHBISeedScanRequestBuilder()
+      ..sequences = MapBuilder<String, String>(sequences)
+      ..labels = MapBuilder<String, JsonObject?>(_toJsonObjects(labels))
+      ..splits = ListBuilder<SeedSplit>(
+        splits.entries.map(
+          (entry) => SeedSplit((b) => b
+            ..seed = entry.key
+            ..trainIds = ListBuilder<String>(entry.value.$1)
+            ..queryIds = ListBuilder<String>(entry.value.$2)),
+        ),
+      )
+      ..evalueCutoff = evalueCutoff
+      ..minSeqId = minSeqId
+      ..isNumeric = isNumeric
+      ..iterations = iterations;
+
+    final resp = await cmApi.splitHbiSeedScanApiV1CustomModelsServiceSplitHbiSeedScanPost(
+      splitHBISeedScanRequest: request.build(),
+    );
     return resp.data;
   }
 

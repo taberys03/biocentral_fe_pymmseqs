@@ -11,6 +11,8 @@ export 'src/model/model_metadata.dart' show ModelMetadata;
 export 'src/model/bootstrapped_metric.dart' show BootstrappedMetric;
 export 'src/model/cluster_hbi_response.dart' show ClusterHBIResponse;
 export 'src/model/split_hbi_response.dart' show SplitHBIResponse;
+export 'src/model/split_hbi_seed_scan_response.dart' show SplitHBISeedScanResponse;
+export 'src/model/seed_hbi_result.dart' show SeedHBIResult;
 export 'src/extensions/serialization_extensions.dart';
 export 'src/extensions/bootstrapped_metric_ext.dart';
 export 'src/extensions/string_extensions.dart';

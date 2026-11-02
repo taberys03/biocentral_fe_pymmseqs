@@ -25,6 +25,9 @@ from .endpoint_models import (
     ClusterHBIResponse,
     SplitHBIRequest,
     SplitHBIResponse,
+    SplitHBISeedScanRequest,
+    SplitHBISeedScanResponse,
+    SeedHBIResult,
 )
 from biocentral_server.proteins.proteins_task import (
     run_pymmseqs_clustering,
@@ -33,6 +36,7 @@ from .hbi_service import (
     run_easy_search_lookup,
     compute_hbi_metrics_from_lookup,
     compute_hbi_cluster_metrics,
+    compute_seed_scan,
 )
 from .biotrainer_task import BiotrainerTask, get_config_presets
 from .biotrainer_inference_task import BiotrainerInferenceTask
@@ -362,4 +366,38 @@ def split_hbi(payload: SplitHBIRequest):
         num_queries=len(payload.query_seqs),
         hits_found=len(top_hits),
         evaluated_queries=evaluated_queries,
+    )
+
+
+@router.post(
+    "/split-hbi-seed-scan/",
+    response_model=SplitHBISeedScanResponse,
+    summary="Evaluate split HBI for several seeds of the same dataset with a single easy_search",
+    dependencies=[Depends(RateLimiter(times=30, seconds=60))],
+)
+def split_hbi_seed_scan(payload: SplitHBISeedScanRequest):
+    try:
+        scan_results = compute_seed_scan(
+            sequences=payload.sequences,
+            labels=payload.labels,
+            splits={split.seed: (split.train_ids, split.query_ids) for split in payload.splits},
+            evalue_cutoff=payload.evalue_cutoff,
+            min_seq_id=payload.min_seq_id,
+            is_numeric=payload.is_numeric,
+            iterations=payload.iterations,
+        )
+    except Exception as e:
+        logger.error(f"Split HBI seed scan error: {e}")
+        raise HTTPException(status_code=500, detail=f"Split HBI seed scan error: {str(e)}")
+
+    return SplitHBISeedScanResponse(
+        results=[
+            SeedHBIResult(
+                seed=seed,
+                metrics=metrics,
+                hits_found=hits_found,
+                evaluated_queries=metrics[0].sample_size if metrics else 0,
+            )
+            for seed, (metrics, hits_found) in scan_results.items()
+        ]
     )

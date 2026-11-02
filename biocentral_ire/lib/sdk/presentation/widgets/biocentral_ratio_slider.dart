@@ -8,6 +8,9 @@ class BiocentralRatioSlider extends StatefulWidget {
   final List<Color>? colors;
   final int? totalN;
 
+  /// Exact number of items per set, shown instead of the estimate from [totalN]
+  final List<int>? counts;
+
   const BiocentralRatioSlider({
     required this.ratio1,
     required this.labels,
@@ -16,8 +19,10 @@ class BiocentralRatioSlider extends StatefulWidget {
     this.ratio2,
     this.colors,
     this.totalN,
+    this.counts,
   })  : assert(ratio2 != null ? labels.length == 3 : labels.length == 2),
-        assert(colors != null ? colors.length == labels.length : true);
+        assert(colors != null ? colors.length == labels.length : true),
+        assert(counts != null ? counts.length == labels.length : true);
 
   @override
   State<BiocentralRatioSlider> createState() => _BiocentralRatioSliderState();
@@ -58,7 +63,10 @@ class _BiocentralRatioSliderState extends State<BiocentralRatioSlider> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             Text('${(ratioList[index] * 100).round()}%'),
-            if (widget.totalN != null) Text('~${(widget.totalN! * ratioList[index]).round()}'),
+            if (widget.counts != null)
+              Text('N = ${widget.counts![index]}')
+            else if (widget.totalN != null)
+              Text('~${(widget.totalN! * ratioList[index]).round()}'),
           ],
         );
       }),

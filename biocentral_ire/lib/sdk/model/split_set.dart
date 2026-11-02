@@ -1,3 +1,5 @@
+import 'dart:math';
+
 enum SplitSet {
   train,
   val,
@@ -40,6 +42,23 @@ class SplitRatio {
     r3 ??= 1 - (r1 + r2);
     assert(r1 + r2 + r3 == 1.0);
     return SplitRatio._(r1: r1, r2: r2, r3: r3);
+  }
+
+  /// Recommends a train/val/test ratio for partition units (sequences or cluster representatives).
+  /// Smaller datasets get larger evaluation sets, and the test share is raised up to 30%
+  /// so that it holds enough test seqs.
+  factory SplitRatio.recommendFor(int nUnits, {required int minTest}) {
+    double test = switch (nUnits) {
+      < 500 => 0.15,
+      < 5000 => 0.10,
+      < 50000 => 0.075,
+      _ => 0.05,
+    };
+    if (nUnits > 0 && nUnits * test < minTest) {
+      test = min(0.3, (minTest / nUnits * 100).ceil() / 100);
+    }
+    final double val = test;
+    return SplitRatio._(r1: 1 - val - test, r2: val, r3: test);
   }
 
   factory SplitRatio.fromRatio(double ratio) {

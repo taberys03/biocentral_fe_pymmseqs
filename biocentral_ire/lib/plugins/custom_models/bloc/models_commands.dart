@@ -193,10 +193,7 @@ final class SplitDataCommand extends BiocentralCommand<BiocentralDatabaseUpdate<
 
   SplitDataCommand({
     required BiocentralDatabase database,
-    BiocentralAPIRepository? apiRepository,
-    required SplitSetGenerationMode mode,
-    required SplitSetGenerationMethod method,
-    required SplitRatio splitRatio,
+    required SplitSetGenerationMode mode, required SplitSetGenerationMethod method, required SplitRatio splitRatio, BiocentralAPIRepository? apiRepository,
     int? seed,
     BiocentralDatabaseColumn? selectedSetColumn,
     SplitSet? subsplitSource,
@@ -218,7 +215,7 @@ final class SplitDataCommand extends BiocentralCommand<BiocentralDatabaseUpdate<
   @override
   Stream<BiocentralCommandLog<BiocentralDatabaseUpdate<BioEntity>>> execute() async* {
     BiocentralCommandLog<BiocentralDatabaseUpdate<BioEntity>> log = initLog();
-    yield log = log.logInfo(information: 'Calculating splits with method $_method..');
+    yield log = log.logInfo(information: 'Calculating splits with method $_method and seed $_seed..');
 
     // >>> CHANGED SECTION: Use Map<String, List<String>> clusters for SetGenerator
     Map<String, List<String>>? clusters;
@@ -238,7 +235,7 @@ final class SplitDataCommand extends BiocentralCommand<BiocentralDatabaseUpdate<
       }
 
       final threshold = _clusteringThreshold ?? 0.3;
-      final api = _apiRepository!.getBiocentralAPI();
+      final api = _apiRepository.getBiocentralAPI();
 
       try {
         final biocentralTask = await api.cluster(
@@ -532,7 +529,7 @@ final class InferenceCommand extends BiocentralCommand<BiocentralDatabaseUpdate<
       required BiocentralAPIRepository apiRepository,
       required String predictionColumnName,
       required PredictionModel predictionModel,
-      required Set<String> selectedEntityIDs})
+      required Set<String> selectedEntityIDs,})
       : _biocentralDatabase = biocentralDatabase,
         _apiRepository = apiRepository,
         _predictionColumnName = predictionColumnName,

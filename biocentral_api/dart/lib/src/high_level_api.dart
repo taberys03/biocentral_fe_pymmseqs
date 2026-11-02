@@ -2,6 +2,7 @@ import 'package:biocentral_api/biocentral_api.dart';
 import 'package:biocentral_api/src/clients/active_learning_client.dart';
 import 'package:biocentral_api/src/clients/custom_models_client.dart';
 import 'package:biocentral_api/src/clients/stats_client.dart';
+import 'package:dio/dio.dart';
 
 import 'api.dart' as gen;
 import 'clients/embedding_client.dart';
@@ -203,12 +204,25 @@ class BiocentralAPI {
     return availableURL;
   }
 
-  gen.BiocentralApi _getAPI() {
+  /// Synchronous HBI endpoints run MMseqs2 and bootstrapping within the request,
+  /// which can take longer than the default receive timeout of the generated client (3 seconds)
+  static const Duration _hbiReceiveTimeout = Duration(minutes: 2);
+
+  gen.BiocentralApi _getAPI({Duration? receiveTimeout}) {
     String? url = _getAvailableURL();
     if (url == null) {
       throw Exception("No healthy service available!");
     }
-    return gen.BiocentralApi(basePathOverride: url);
+    if (receiveTimeout == null) {
+      return gen.BiocentralApi(basePathOverride: url);
+    }
+    return gen.BiocentralApi(
+      dio: Dio(BaseOptions(
+        baseUrl: url,
+        connectTimeout: const Duration(milliseconds: 5000),
+        receiveTimeout: receiveTimeout,
+      )),
+    );
   }
 }
 
@@ -246,7 +260,7 @@ extension CustomModelsAPI on BiocentralAPI {
     int iterations = 100,
   }) async {
     return CustomModelsClient().clusterHbi(
-      api: _getAPI(),
+      api: _getAPI(receiveTimeout: BiocentralAPI._hbiReceiveTimeout),
       datasetHash: datasetHash,
       targetData: targetData,
       sequenceData: sequenceData,
@@ -267,11 +281,32 @@ extension CustomModelsAPI on BiocentralAPI {
     int iterations = 100,
   }) async {
     return CustomModelsClient().splitHbi(
-      api: _getAPI(),
+      api: _getAPI(receiveTimeout: BiocentralAPI._hbiReceiveTimeout),
       trainSeqs: trainSeqs,
       querySeqs: querySeqs,
       trainLabels: trainLabels,
       queryLabels: queryLabels,
+      evalueCutoff: evalueCutoff,
+      minSeqId: minSeqId,
+      isNumeric: isNumeric,
+      iterations: iterations,
+    );
+  }
+
+  Future<SplitHBISeedScanResponse?> splitHbiSeedScan({
+    required Map<String, String> sequences,
+    required Map<String, dynamic> labels,
+    required Map<int, (List<String>, List<String>)> splits,
+    num evalueCutoff = 0.001,
+    num minSeqId = 0.0,
+    bool isNumeric = false,
+    int iterations = 30,
+  }) async {
+    return CustomModelsClient().splitHbiSeedScan(
+      api: _getAPI(receiveTimeout: BiocentralAPI._hbiReceiveTimeout),
+      sequences: sequences,
+      labels: labels,
+      splits: splits,
       evalueCutoff: evalueCutoff,
       minSeqId: minSeqId,
       isNumeric: isNumeric,
